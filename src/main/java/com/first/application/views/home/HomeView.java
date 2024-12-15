@@ -36,7 +36,7 @@ public class HomeView extends VerticalLayout {
         gridContainer.setId("grid-container");
 
         // Add grids for each category
-        gridContainer.add(createStockGrid("Top Gainers", yahooService.getTopGainers()));
+        gridContainer.add(createStockGrid("Top Gainers", getTopGainers()));
         gridContainer.add(createStockGrid("Top Losers", getTopLosers()));
         gridContainer.add(createStockGrid("High Volume", getHighVolume()));
         gridContainer.add(createStockGrid("Most Bought", getMostBought()));
