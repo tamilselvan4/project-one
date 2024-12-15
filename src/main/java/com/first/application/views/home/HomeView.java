@@ -1,5 +1,7 @@
 package com.first.application.views.home;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.first.application.model.Stock;
 import com.first.application.service.YahooService;
 import com.vaadin.flow.component.dependency.JsModule;
@@ -11,11 +13,15 @@ import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.lineawesome.LineAwesomeIconUrl;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 @PageTitle("Home")
 @Route("")
@@ -24,6 +30,10 @@ import java.util.List;
 public class HomeView extends VerticalLayout {
 
     private final YahooService yahooService;
+
+    private static final String API_KEY = "2IINWLY9I7UB7G64";
+    private static final String BASE_URL = "https://www.alphavantage.co/query";
+
 
     public HomeView(YahooService yahooService) {
         this.yahooService = yahooService;
@@ -83,11 +93,58 @@ public class HomeView extends VerticalLayout {
         return container;
     }
 
+//    private List<Stock> getTopGainers() {
+//        List<Stock> stocks = new ArrayList<>();
+//        stocks.add(new Stock("TCS", "TCS", 3500.00, 50.00, 1.45));
+//        stocks.add(new Stock("Infosys", "INFY", 1470.00, 30.00, 2.08));
+//        return stocks;
+//    }
+
     private List<Stock> getTopGainers() {
         List<Stock> stocks = new ArrayList<>();
-        stocks.add(new Stock("TCS", "TCS", 3500.00, 50.00, 1.45));
-        stocks.add(new Stock("Infosys", "INFY", 1470.00, 30.00, 2.08));
+        String[] symbols = {"TCS.BSE", "INFY.BSE"};
+
+        for (String symbol : symbols) {
+            Stock stock = fetchStockData(symbol);
+            if (stock != null) {
+                stocks.add(stock);
+            }
+        }
+
         return stocks;
+    }
+
+    private Stock fetchStockData(String symbol) {
+        String url = String.format("%s?function=GLOBAL_QUOTE&symbol=%s&apikey=%s", BASE_URL, symbol, API_KEY);
+
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(response.body());
+                JsonNode globalQuote = root.path("Global Quote");
+
+                if (!globalQuote.isMissingNode()) {
+                    String stockSymbol = globalQuote.path("01. symbol").asText();
+                    double price = globalQuote.path("05. price").asDouble();
+                    double change = globalQuote.path("09. change").asDouble();
+                    double changePercent = Double.parseDouble(globalQuote.path("10. change percent").asText().replace("%", ""));
+
+                    return new Stock(stockSymbol, stockSymbol.split("\\.")[0], price, change, changePercent);
+                }
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
     private List<Stock> getTopLosers() {
